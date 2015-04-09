@@ -1,5 +1,5 @@
 from os import path, makedirs
-from configparser import ConfigParser
+from configparser import ConfigParser, ExtendedInterpolation
 from appdirs import AppDirs
 
 
@@ -8,7 +8,8 @@ class Config:
     MangaDL configuration management
     """
     CONFIGS = (
-        ('Paths', ('manga_dir', 'chapter_dir', 'page_file')),
+        ('Paths', ('manga_dir', 'chapter_dir', 'page_filename')),
+        ('Common', ('sites',))
     )
 
     def __init__(self):
@@ -19,7 +20,7 @@ class Config:
 
         # Internal file and ConfigParser placeholders
         self._cfgfile = None
-        self._config = ConfigParser()
+        self._config = ConfigParser(interpolation=ExtendedInterpolation())
 
         # Set the path information
         self.app_config_dir = self.dirs.user_config_dir
@@ -39,11 +40,11 @@ class Config:
 
         return True
 
-    def app_config_create(self, **kwargs):
+    def app_config_create(self, config_dict):
         """
         Create and return a new configuration file
-        :param Paths: A dictionary of path settings
-        :type  Paths: dict of (str, str)
+        :param config_dict: A dictionary of configuration options
+        :type  config_dict: dict of dict
 
         :return: An instantiated and loaded ConfigParser instance
         :rtype : configparser.ConfigParser
@@ -56,25 +57,16 @@ class Config:
 
         # Create the config sections
         for config in self.CONFIGS:
-            for section, settings in config:
-                # Create config section
-                self._config.add_section(section)
+            section, settings = config
+            # Create config section
+            self._config.add_section(section)
 
-                # Assign config settings
-                for setting in settings:
-                    self._config.set(section, setting, '')
+            # Assign config settings
+            for setting in settings:
+                self._config.set(section, setting, '')
 
         # Save all passed settings
-        for section, config in kwargs.items():
-            if not isinstance(config, dict):
-                raise ValueError('Keyword arguments must contain valid setting dictionaries')
-
-            for option, value in config.items():
-                self._config.set(section, option, value)
-
-        # Validate our settings parameter
-        if not isinstance(settings, tuple):
-            raise ValueError('setting parameter must be a tuple')
+        self._config.read_dict(config_dict)
 
         # Write and flush the default configuration
         self._config.write(self._cfgfile)
