@@ -9,7 +9,7 @@ class Config:
     """
     CONFIGS = (
         ('Paths', ('manga_dir', 'chapter_dir', 'page_filename')),
-        ('Common', ('sites',))
+        ('Common', ('sites', 'synonyms'))
     )
 
     def __init__(self):
@@ -19,13 +19,21 @@ class Config:
         self.dirs = AppDirs('MangaDL', 'Makoto')
 
         # Internal file and ConfigParser placeholders
-        self._cfgfile = None
-        self._config = ConfigParser(interpolation=ExtendedInterpolation())
+        self._app_cfgfile = None
+        self._app_config = ConfigParser(interpolation=ExtendedInterpolation())
 
         # Set the path information
         self.app_config_dir = self.dirs.user_config_dir
         self.app_config_file = "manga-dl.cfg"
         self.app_config_path = path.join(self.app_config_dir, self.app_config_file)
+
+    def app_config(self):
+        """
+        Return the application configuration
+        :rtype : ConfigParser
+        """
+        self._app_config.read(self.app_config_path)
+        return self._app_config
 
     def app_config_exists(self):
         """
@@ -47,27 +55,27 @@ class Config:
         :type  config_dict: dict of dict
 
         :return: An instantiated and loaded ConfigParser instance
-        :rtype : configparser.ConfigParser
+        :rtype : ConfigParser
         """
         # If our config directory doesn't exist, create it
         if not path.exists(self.app_config_dir):
             makedirs(self.app_config_dir, 0o750)
 
-        self._cfgfile = open(self.app_config_path, 'w')
+        self._app_cfgfile = open(self.app_config_path, 'w')
 
         # Create the config sections
         for config in self.CONFIGS:
             section, settings = config
             # Create config section
-            self._config.add_section(section)
+            self._app_config.add_section(section)
 
             # Assign config settings
             for setting in settings:
-                self._config.set(section, setting, '')
+                self._app_config.set(section, setting, '')
 
         # Save all passed settings
-        self._config.read_dict(config_dict)
+        self._app_config.read_dict(config_dict)
 
         # Write and flush the default configuration
-        self._config.write(self._cfgfile)
-        self._cfgfile.flush()
+        self._app_config.write(self._app_cfgfile)
+        self._app_cfgfile.flush()
