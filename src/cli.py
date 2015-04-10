@@ -1,6 +1,9 @@
+import sys
+import logging
 from os import path, makedirs
+from clint.textui import puts, prompt, colored
 from src.config import Config
-from clint.textui import puts, prompt
+from src.manga import Manga, NoSearchResultsError, ImageResourceUnavailableError
 
 
 class CLI:
@@ -8,11 +11,14 @@ class CLI:
     YES_RESPONSES = ['y', 'yes', 'true']
     NO_RESPONSES = ['n', 'no', 'false']
 
+    PROMPT_ACTIONS = {'1': 'download', '2': 'update', '3': 'create_pdf', '4': 'delete', 's': 'setup', 'e': 'exit'}
+
     def __init__(self):
         """
         Initialize a new CLI instance
         """
         self.config = Config()
+        self.log = logging.getLogger('manga-dl.cli')
 
     @staticmethod
     def print_header():
@@ -28,29 +34,80 @@ class CLI:
                     |___/
         """)
 
-    def prompt(self):
+    def prompt(self, header=True):
         """
         Prompt for an action
+        :param header: Display the application header before the options
+        :type  header: bool
 
         :return : An action to perform
         :rtype : str
         """
-        self.print_header()
+        if header:
+            self.print_header()
         puts('1. Download new series')
         puts('2. Update existing series')
         puts('3. Create PDF\'s from existing series')
         puts('4. Delete existing series')
         puts('--------------------------------')
+        puts('s. Re-run setup')
         puts('e. Exit\n')
 
-        return prompt.query('What would you like to do?')
+        self.log.info('Prompting user for an action')
+        action = prompt.query('What would you like to do?')
+        if action not in self.PROMPT_ACTIONS:
+            self.log.info('User provided an invalid action response')
+            puts('Invalid selection, please chose from one of the options listed above')
+            return self.prompt(False)
+
+        self.download()
+
+    def download(self):
+        title = prompt.query('What is the title of the Manga series?').strip()
+        manga = Manga()
+
+        # Fetch all available chapters
+        try:
+            chapters = manga.search(title)
+        except NoSearchResultsError:
+            puts('No search results returned for {query}'.format(query=colored.blue(title, bold=True)))
+            if prompt.query('Exit?', 'Y') in self.YES_RESPONSES:
+                self.exit()
+            return self.prompt()
+
+        # Since our dictionary may include "half"/bonus chapters, len() may not produce a viable metric here
+        chapter_count = len(chapters)  # A bit hacky, gets the last item of an ordered dictionary
+        puts('Downloading {num} chapters'.format(num=chapter_count))
+
+        # Loop through our chapters and download them
+        for no, chapter in chapters.items():
+            try:
+                print(chapter.first_available_choice)
+                manga.download(chapter)
+            except ImageResourceUnavailableError:
+                puts('A match was found, but no image resources for the pages appear to be available')
+                puts('This probably means the Manga was licensed and has been removed')
+                if prompt.query('Exit?', 'Y').lower() in self.YES_RESPONSES:
+                    self.exit()
+                return self.prompt()
+            except AttributeError as e:
+                self.log.error('An exception was raised downloading this chapter', exc_info=e)
+                response = prompt.query('An error occured trying to download this chapter. Continue?', 'Y')
+                if response.lower() in self.YES_RESPONSES:
+                    continue
+                puts('Exiting')
+                break
 
     # noinspection PyUnboundLocalVariable
-    def setup(self):
+    def setup(self, header=True):
         """
         Run setup tasks for MangaDL
+        :param header: Display the setup header prior to user prompts
+        :type  header: bool
         """
-        puts('MangaDL appears to be running for the first time, initializing setup')
+        self.log.info('Running setup tasks')
+        if header:
+            puts('MangaDL appears to be running for the first time, initializing setup')
 
         # Manga directory
         manga_dir_default = path.join(path.expanduser('~'), 'Manga')
@@ -61,17 +118,20 @@ class CLI:
         if not path.exists(manga_dir):
             create_manga_dir = prompt.query('Directory does not exist, would you like to create it now?', 'Y')
             if create_manga_dir.lower() in self.YES_RESPONSES:
+                self.log.info('Setting up Manga directory')
                 makedirs(manga_dir)
                 puts('Manga directory created successfully')
             else:
+                self.log.info('User refused to create manga directory, aborting setup')
                 puts('Not creating Manga directory, setup aborted')
 
         # Sites
         while True:
+            self.log.info('Prompting for Manga sites to enable')
             sites = []
             puts('\nWhich Manga websites would you like to enable?')
 
-            sites_dictionary = ['MangeHere', 'MangaFox', 'MangaPanda', 'MangaReader']
+            sites_dictionary = ['MangaHere', 'MangaFox', 'MangaPanda', 'MangaReader']
             for key, site in enumerate(sites_dictionary, 1):
                 puts('{key}. {site}'.format(key=key, site=site))
 
@@ -81,17 +141,32 @@ class CLI:
             try:
                 for site_key in site_keys:
                     site_key = int(site_key) - 1
+                    self.log.info('Appending site: {site}'.format(site=sites_dictionary[site_key]))
                     sites.append(sites_dictionary[site_key])
             except (ValueError, IndexError):
+                self.log.info('User provided invalid sites input')
                 puts('Please provide a comma separated list of ID\'s from the above list')
                 continue
 
             break
 
+        # Synonyms
+        puts('\nMangaDL can attempt to search for known alternative names to Manga titles when no results are found')
+        synonyms_enabled = prompt.query('Would you like to enable this functionality?', 'Y')
+        synonyms_enabled = True if synonyms_enabled.lower() in self.YES_RESPONSES else False
+
         # Define the configuration values
-        config = {'Paths': {'manga_dir': manga_dir, 'chapter_dir': '${manga_dir}/{series}/Chapter {num}',
+        config = {'Paths': {'manga_dir': manga_dir,
+                            'chapter_dir': '${manga_dir}/{series}/{volume}/[Chapter {num}] - {title}',
                             'page_filename': 'page-{num}.{ext}'},
 
-                  'Common': {'sites': ','.join(sites)}}
+                  'Common': {'sites': ','.join(sites), 'synonyms': str(synonyms_enabled)}}
 
         self.config.app_config_create(config)
+
+    @staticmethod
+    def exit():
+        """
+        Exit the application
+        """
+        sys.exit()

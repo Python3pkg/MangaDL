@@ -1,3 +1,4 @@
 mangopi<0.3
 clint<0.5
 appdirs<1.5
+progressbar33<2.5
