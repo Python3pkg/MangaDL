@@ -1,4 +1,6 @@
 #!/bin/env python3
+import os
+import sys
 import logging
 from src.config import Config
 from src.cli import CLI
@@ -26,6 +28,7 @@ def main():
     # If this is our first time running the application, run setup first
     if not config:
         cli.setup()
+        os.execl(sys.executable, *([sys.executable] + sys.argv))
 
     cli.prompt()
 
