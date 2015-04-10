@@ -1,9 +1,11 @@
-from os import path, makedirs
+from os import path, makedirs, popen
+import platform
 from time import sleep
 import importlib
 import logging
 import re
 from urllib import request
+from configparser import ConfigParser
 from clint.textui import puts
 from progressbar import ProgressBar, Percentage, Bar, SimpleProgress, AdaptiveETA
 from mangopi.metasite import MetaSite
@@ -80,17 +82,54 @@ class Manga:
         page_count = len(pages)
         self.log.info('{num} pages found'.format(num=page_count))
 
+        # Set up the manga directory
+        self.log.debug('Formatting the manga directory path')
+        manga_dir_template = self.config.get('Paths', 'manga_dir')
+        manga_path = manga_dir_template
+        self.log.debug('Manga path set: {path}'.format(path=manga_path))
+
+        # Set up the series directory
+        self.log.debug('Formatting the series directory path')
+        series_dir_template = self.config.get('Paths', 'series_dir')
+        series_path = path.join(manga_path, series_dir_template.format(series=chapter.series.name))
+        self.log.debug('Series path set: {path}'.format(path=series_path))
+
+        # Set up the volume directory
+        self.log.debug('Formatting the volume directory path')
+        volume_dir_template = self.config.get('Paths', 'volume_dir')
+        volume = chapter.volume if hasattr(chapter, 'volume') else 0
+        volume_path = path.join(series_path, volume_dir_template.format(volume=volume))
+        self.log.debug('Volume path set: {path}'.format(path=volume_path))
+
         # Set up the Chapter directory
         self.log.debug('Formatting chapter directory path')
         chapter_dir_template = self.config.get('Paths', 'chapter_dir')
-        volume = chapter.volume if hasattr(chapter, 'volume') else ''
-        chapter_dir = chapter_dir_template.format(series=chapter.series.name, volume=volume, num=chapter.chapter,
-                                                  title=chapter.title)
-        self.log.debug('Chapter directory set: {path}'.format(path=chapter_dir))
+        chapter_path = path.join(volume_path, chapter_dir_template.format(num=chapter.chapter, title=chapter.title))
+        self.log.debug('Chapter path set: {path}'.format(path=chapter_path))
 
-        if not path.isdir(chapter_dir):
+        if not path.isdir(chapter_path):
             self.log.debug('Creating chapter directory')
-            makedirs(chapter_dir, 0o755)
+            makedirs(chapter_path, 0o755)
+
+        # Set up the series configuration
+        config = ConfigParser()
+        config.add_section('Paths')
+        config.set('Paths', 'series_dir', series_dir_template.format(series=r'(?<series>\.+)'))
+        config.set('Paths', 'volume_dir', volume_dir_template.format(volume=r'(?<volume>\d+(\.\d)?)'))
+        config.set('Paths', 'chapter_dir', chapter_dir_template.format(num=r'(?<num>\d+(\.\d)?)',
+                                                                       title=r'(?<title>.+)'))
+
+        # Write to and close the configuration file
+        cfg_path = path.join(series_path, '.' + Config().app_config_file)
+        cfg_file = open(cfg_path, 'w')
+        config.write(cfg_file)
+        cfg_file.close()
+
+        # If we're on Windows, make the configuration file hidden
+        if platform.system() == 'Windows':
+            p = popen('attrib +h ' + cfg_path)
+            t = p.read()
+            p.close()
 
         # Set up the progress bar
         progress_bar = ProgressBar(page_count, self.progress_widget)
@@ -101,7 +140,7 @@ class Manga:
             # Set the filename and path
             page_filename = page_filename_template.format(num=page_no, ext='jpg')
             self.log.debug('Page filename set: {filename}'.format(filename=page_filename))
-            page_path = path.join(chapter_dir, page_filename)
+            page_path = path.join(chapter_path, page_filename)
 
             # Download and save the page image
             image = page.image
