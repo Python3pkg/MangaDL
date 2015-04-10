@@ -5,7 +5,7 @@ from src.cli import CLI
 
 
 def main():
-    config = Config()
+    config = Config().app_config() if Config().app_config_exists() else None
     cli = CLI()
 
     # Set up logging
@@ -13,14 +13,18 @@ def main():
     log_formatter = logging.Formatter("[%(asctime)s] %(levelname)s.%(name)s: %(message)s")
 
     # Set up our console logger
-    log.setLevel(logging.DEBUG)
+    if config and config.getboolean('Common', 'debug'):
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.NOTSET)
+
     console_logger = logging.StreamHandler()
     console_logger.setLevel(logging.DEBUG)
     console_logger.setFormatter(log_formatter)
     log.addHandler(console_logger)
 
     # If this is our first time running the application, run setup first
-    if not config.app_config_exists():
+    if not config:
         cli.setup()
 
     cli.prompt()

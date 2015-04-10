@@ -71,7 +71,7 @@ class CLI:
             chapters = manga.search(title)
         except NoSearchResultsError:
             puts('No search results returned for {query}'.format(query=colored.blue(title, bold=True)))
-            if prompt.query('Exit?', 'Y') in self.YES_RESPONSES:
+            if prompt.query('Exit?', 'Y').lower().strip() in self.YES_RESPONSES:
                 self.exit()
             return self.prompt()
 
@@ -87,13 +87,13 @@ class CLI:
             except ImageResourceUnavailableError:
                 puts('A match was found, but no image resources for the pages appear to be available')
                 puts('This probably means the Manga was licensed and has been removed')
-                if prompt.query('Exit?', 'Y').lower() in self.YES_RESPONSES:
+                if prompt.query('Exit?', 'Y').lower().strip() in self.YES_RESPONSES:
                     self.exit()
                 return self.prompt()
             except AttributeError as e:
                 self.log.error('An exception was raised downloading this chapter', exc_info=e)
                 response = prompt.query('An error occured trying to download this chapter. Continue?', 'Y')
-                if response.lower() in self.YES_RESPONSES:
+                if response.lower().strip() in self.YES_RESPONSES:
                     continue
                 puts('Exiting')
                 break
@@ -117,7 +117,7 @@ class CLI:
         # Create the Manga directory if it doesn't exist
         if not path.exists(manga_dir):
             create_manga_dir = prompt.query('Directory does not exist, would you like to create it now?', 'Y')
-            if create_manga_dir.lower() in self.YES_RESPONSES:
+            if create_manga_dir.lower().strip() in self.YES_RESPONSES:
                 self.log.info('Setting up Manga directory')
                 makedirs(manga_dir)
                 puts('Manga directory created successfully')
@@ -153,14 +153,22 @@ class CLI:
         # Synonyms
         puts('\nMangaDL can attempt to search for known alternative names to Manga titles when no results are found')
         synonyms_enabled = prompt.query('Would you like to enable this functionality?', 'Y')
-        synonyms_enabled = True if synonyms_enabled.lower() in self.YES_RESPONSES else False
+        synonyms_enabled = True if synonyms_enabled.lower().strip() in self.YES_RESPONSES else False
+
+        # Paths
+        series_dir = '{series}'
+        volume_dir = 'Volume {volume}'
+        chapter_dir = '[Chapter {num}] - {title}'
+
+        # Development mode
+        debug_mode = prompt.query('\nWould you like to enable debug mode?', 'N')
+        debug_mode = True if debug_mode.lower().strip() in self.YES_RESPONSES else False
 
         # Define the configuration values
-        config = {'Paths': {'manga_dir': manga_dir,
-                            'chapter_dir': '${manga_dir}/{series}/{volume}/[Chapter {num}] - {title}',
-                            'page_filename': 'page-{num}.{ext}'},
+        config = {'Paths': {'manga_dir': manga_dir, 'series_dir': series_dir, 'volume_dir': volume_dir,
+                            'chapter_dir': chapter_dir, 'page_filename': 'page-{num}.{ext}'},
 
-                  'Common': {'sites': ','.join(sites), 'synonyms': str(synonyms_enabled)}}
+                  'Common': {'sites': ','.join(sites), 'synonyms': str(synonyms_enabled), 'debug': debug_mode}}
 
         self.config.app_config_create(config)
 

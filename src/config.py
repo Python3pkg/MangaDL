@@ -8,8 +8,8 @@ class Config:
     MangaDL configuration management
     """
     CONFIGS = (
-        ('Paths', ('manga_dir', 'chapter_dir', 'page_filename')),
-        ('Common', ('sites', 'synonyms'))
+        ('Paths', ('manga_dir', 'chapter_dir', 'series_dir', 'volume_dir' 'page_filename')),
+        ('Common', ('sites', 'synonyms', 'debug'))
     )
 
     def __init__(self):
