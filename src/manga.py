@@ -180,13 +180,28 @@ class Manga:
 
     def get(self, chapter):
         """
-        Retrieve metadata on a given Manga chapter
+        Retrieve local metadata on a given Manga chapter
         :param chapter: The chapter to retrieve
         :type  chapter: MetaSite.MetaChapter
 
         :return: MetaChapter instance if it exists, otherwise None
         :rtype : object or None
         """
+
+    def all(self):
+        """
+        Return all locally available Manga saves
+
+        :return: List of MangaMeta instances
+        :rtype : list of MangaMeta
+        """
+        manga_list = []
+        for path_item in os.listdir(self.config.get('Paths', 'manga_dir')):
+            try:
+                manga_list.append(MangaMeta(path_item))
+            except MangaNotSavedError:
+                continue
+        return manga_list
 
 
 # noinspection PyTypeChecker
