@@ -13,6 +13,9 @@ from src.config import Config
 
 
 class Manga:
+    """
+    Manga downloading and updating services
+    """
     def __init__(self):
         """
         Initialize a new Manga instance
@@ -141,7 +144,7 @@ class Manga:
             t = p.read()
             p.close()
 
-    def download_chapter(self, chapter, manga):
+    def download_chapter(self, chapter, manga, overwriting=True):
         """
         Download all pages in a chapter
         :param chapter: The chapter to download_chapter
@@ -149,6 +152,9 @@ class Manga:
 
         :param manga: The local Manga series
         :type  manga: MangaMeta
+
+        :param overwriting: Overwrite existing pages
+        :type  overwriting: bool
         """
         self.log.info('Downloading chapter {num}: {title}'.format(num=chapter.chapter, title=chapter.title))
         puts('Loading Manga page data, this may take a while')
@@ -182,6 +188,12 @@ class Manga:
             self.log.debug('Page filename set: {filename}'.format(filename=page_filename))
             page_path = os.path.join(chapter_path, page_filename)
 
+            # If we're not overwriting and the file exists, skip it
+            if not overwriting and os.path.exists(page_path):
+                self.log.info('Skipping existing page ({page})'.format(page=page_no))
+                progress_bar.update(page_no)
+                continue
+
             # Download and save the page image
             image = page.image
             if not image:
@@ -193,7 +205,7 @@ class Manga:
             progress_bar.update(page_no)
             sleep(self.throttle)
 
-    def update(self, chapter, manga):
+    def update(self, chapter, manga, checking_pages=True):
         """
         Download a chapter only if it doesn't already exist, and replace any missing pages in existing chapters
         :param chapter: The chapter to update
@@ -203,7 +215,11 @@ class Manga:
         :type  manga: MangaMeta
         """
         # If we don't have this chapter yet, download_chapter it
+        if chapter.chapter in manga.chapters and not checking_pages:
+            self.log.info('Skipping existing chapter: ({no}) {title}'.format(no=chapter.chapter, title=chapter.title))
+            return
 
+        self.download_chapter(chapter, manga, overwriting=False)
 
     def get(self, chapter):
         """

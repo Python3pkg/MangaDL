@@ -3,9 +3,10 @@ import logging
 from os import path, makedirs
 from clint.textui import puts, prompt, colored
 from src.config import Config
-from src.manga import Manga, NoSearchResultsError, ImageResourceUnavailableError
+from src.manga import Manga, MangaMeta, NoSearchResultsError, ImageResourceUnavailableError, MangaAlreadyExistsError
 
 
+# noinspection PyUnboundLocalVariable,PyBroadException
 class CLI:
     # Boolean responses
     YES_RESPONSES = ['y', 'yes', 'true']
@@ -19,6 +20,9 @@ class CLI:
         """
         self.config = Config()
         self.log = logging.getLogger('manga-dl.cli')
+        if path.isfile(self.config.app_config_path):
+            self.config = self.config.app_config()
+            self.manga = Manga()
 
     @staticmethod
     def print_header():
@@ -54,35 +58,50 @@ class CLI:
         puts('e. Exit\n')
 
         self.log.info('Prompting user for an action')
-        action = prompt.query('What would you like to do?')
+        action = prompt.query('What would you like to do?').lower()
         if action not in self.PROMPT_ACTIONS:
             self.log.info('User provided an invalid action response')
             puts('Invalid selection, please chose from one of the options listed above')
             return self.prompt(False)
 
-        self.download()
+        action = self.PROMPT_ACTIONS[action]
+        action_method = getattr(self, action)
+        action_method()
 
     def download(self):
+        """
+        Download a new Manga title
+        """
         title = prompt.query('What is the title of the Manga series?').strip()
-        manga = Manga()
 
         # Fetch all available chapters
         try:
-            chapters = manga.search(title)
+            chapters = self.manga.search(title)
         except NoSearchResultsError:
             puts('No search results returned for {query}'.format(query=colored.blue(title, bold=True)))
             if prompt.query('Exit?', 'Y').lower().strip() in self.YES_RESPONSES:
                 self.exit()
-            return self.prompt()
+            return
+
+        # Create the series
+        try:
+            self.manga.create_series(title)
+        except MangaAlreadyExistsError:
+            # Series already exists, prompt the user for confirmation to continue
+            puts('This Manga has already been downloaded')
+            continue_prompt = prompt.query('Do you still wish to continue and overwrite the series?', 'N')
+            if continue_prompt not in self.YES_RESPONSES:
+                self.exit()
 
         # Print out the number of chapters to be downloaded
         chapter_count = len(chapters)
         puts('Downloading {num} chapters'.format(num=chapter_count))
 
-        # Loop through our chapters and download them
+        # Loop through our chapters and download_chapter them
         for no, chapter in chapters.items():
+            manga = MangaMeta(title)
             try:
-                manga.download(chapter)
+                self.manga.download_chapter(chapter, manga)
             except ImageResourceUnavailableError:
                 puts('A match was found, but no image resources for the pages appear to be available')
                 puts('This probably means the Manga was licensed and has been removed')
@@ -90,14 +109,68 @@ class CLI:
                     self.exit()
                 return self.prompt()
             except AttributeError as e:
-                self.log.error('An exception was raised downloading this chapter', exc_info=e)
-                response = prompt.query('An error occurred trying to download this chapter. Continue?', 'Y')
+                self.log.warn('An exception was raised downloading this chapter', exc_info=e)
+                puts('Chapter does not appear to have any readable pages, skipping')
+                continue
+            except Exception:
+                response = prompt.query('An unknown error occurred trying to download this chapter. Continue?', 'Y')
                 if response.lower().strip() in self.YES_RESPONSES:
                     continue
                 puts('Exiting')
                 break
 
-    # noinspection PyUnboundLocalVariable
+    def update(self):
+        """
+        Update an existing Manga title
+        """
+        manga_list = self.manga.all()
+        if not manga_list:
+            return puts('No Manga titles have been downloaded yet, download_chapter something first!')
+
+        # Print our a list of available Manga saves
+        puts()
+        for key, manga in enumerate(manga_list, 1):
+            puts('{key}. {title}'.format(key=key, title=manga.title))
+        puts()
+
+        # Prompt the user for the Manga title to update
+        while True:
+            try:
+                update_key = int(prompt.query('Which Manga title would you like to update?'))
+                local_manga = manga_list[update_key - 1]
+            except (ValueError, IndexError):
+                self.log.info('User provided invalid update input')
+                puts('Invalid entry, please select a Manga entry from the above list')
+                continue
+            break
+
+        # Run a search query on the selected title
+        try:
+            remote_chapters = self.manga.search(local_manga.title)
+        except NoSearchResultsError:
+            return puts('No search results returned for {query} (the title may have been licensed or otherwise removed)'
+                        .format(query=colored.blue(local_manga.title, bold=True)))
+
+        for no, remote_chapter in remote_chapters.items():
+            try:
+                self.manga.update(remote_chapter, local_manga)
+            except ImageResourceUnavailableError:
+                puts('A match was found, but no image resources for the pages appear to be available')
+                puts('This probably means the Manga was licensed and has been removed')
+                if prompt.query('Exit?', 'Y').lower().strip() in self.YES_RESPONSES:
+                    self.exit()
+                return self.prompt()
+            except AttributeError as e:
+                self.log.warn('An exception was raised downloading this chapter', exc_info=e)
+                puts('Chapter does not appear to have any readable pages, skipping')
+                continue
+            except Exception:
+                response = prompt.query('An unknown error occurred trying to download this chapter. Continue?', 'Y')
+                if response.lower().strip() in self.YES_RESPONSES:
+                    continue
+                puts('Exiting')
+                break
+
     def setup(self, header=True):
         """
         Run setup tasks for MangaDL

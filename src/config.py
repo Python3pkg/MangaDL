@@ -9,7 +9,7 @@ class Config:
     """
     CONFIGS = (
         ('Paths', ('manga_dir', 'chapter_dir', 'series_dir', 'volume_dir' 'page_filename')),
-        ('Common', ('sites', 'synonyms', 'debug'))
+        ('Common', ('sites', 'synonyms', 'throttle', 'debug'))
     )
 
     def __init__(self):
@@ -52,7 +52,7 @@ class Config:
         """
         Create and return a new configuration file
         :param config_dict: A dictionary of configuration options
-        :type  config_dict: dict of dict
+        :type  config_dict: dict of (str, dict)
 
         :return: An instantiated and loaded ConfigParser instance
         :rtype : ConfigParser
