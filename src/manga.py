@@ -204,6 +204,7 @@ class Manga:
         """
         # If we don't have this chapter yet, download_chapter it
 
+
     def get(self, chapter):
         """
         Retrieve local metadata on a given Manga chapter
@@ -305,6 +306,16 @@ class MangaMeta:
                 volume_path = os.path.join(self.path, path_item)
                 volume = match.group('volume')  # volume number
                 self.volumes[volume] = VolumeMeta(volume_path, volume, self)
+
+    @property
+    def chapters(self):
+        """
+        Get and return all chapters for all volumes
+        """
+        chapters = {}
+        for no, volume in self.volumes.items():
+            chapters.update(volume.chapters)
+        return chapters
 
 
 # noinspection PyTypeChecker
