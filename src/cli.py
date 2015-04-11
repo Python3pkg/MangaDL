@@ -75,14 +75,13 @@ class CLI:
                 self.exit()
             return self.prompt()
 
-        # Since our dictionary may include "half"/bonus chapters, len() may not produce a viable metric here
-        chapter_count = len(chapters)  # A bit hacky, gets the last item of an ordered dictionary
+        # Print out the number of chapters to be downloaded
+        chapter_count = len(chapters)
         puts('Downloading {num} chapters'.format(num=chapter_count))
 
         # Loop through our chapters and download them
         for no, chapter in chapters.items():
             try:
-                print(chapter.first_available_choice)
                 manga.download(chapter)
             except ImageResourceUnavailableError:
                 puts('A match was found, but no image resources for the pages appear to be available')
@@ -92,7 +91,7 @@ class CLI:
                 return self.prompt()
             except AttributeError as e:
                 self.log.error('An exception was raised downloading this chapter', exc_info=e)
-                response = prompt.query('An error occured trying to download this chapter. Continue?', 'Y')
+                response = prompt.query('An error occurred trying to download this chapter. Continue?', 'Y')
                 if response.lower().strip() in self.YES_RESPONSES:
                     continue
                 puts('Exiting')
@@ -158,7 +157,8 @@ class CLI:
         # Paths
         series_dir = '{series}'
         volume_dir = 'Volume {volume}'
-        chapter_dir = '[Chapter {num}] - {title}'
+        chapter_dir = '[Chapter {chapter}] - {title}'
+        page_filename = 'page-{page}.{ext}'
 
         # Development mode
         debug_mode = prompt.query('\nWould you like to enable debug mode?', 'N')
@@ -166,9 +166,10 @@ class CLI:
 
         # Define the configuration values
         config = {'Paths': {'manga_dir': manga_dir, 'series_dir': series_dir, 'volume_dir': volume_dir,
-                            'chapter_dir': chapter_dir, 'page_filename': 'page-{num}.{ext}'},
+                            'chapter_dir': chapter_dir, 'page_filename': page_filename},
 
-                  'Common': {'sites': ','.join(sites), 'synonyms': str(synonyms_enabled), 'debug': debug_mode}}
+                  'Common': {'sites': ','.join(sites), 'synonyms': str(synonyms_enabled), 'debug': debug_mode,
+                             'throttle': 1}}
 
         self.config.app_config_create(config)
 
