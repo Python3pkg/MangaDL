@@ -117,7 +117,7 @@ class MangaScraper:
         """
         Page metadata base class
         """
-        __metadata__ = ABCMeta
+        __metaclass__ = ABCMeta
 
         def __init__(self, url, page_no):
             """
@@ -130,6 +130,34 @@ class MangaScraper:
             """
             self.url = url
             self.page = page_no
+            self._image = None
+
+        @abstractmethod
+        def _load_image(self):
+            pass
+
+        @property
+        def image(self):
+            """
+            Image property
+            """
+            if self._image:
+                return self._image
+
+            self._load_image()
+            return self._image
+
+    class ImageMeta:
+        """
+        Image metadata base class
+        """
+        def __init__(self, url):
+            """
+            Initialize a new Image Meta instance
+            :param url: Link to the image
+            :type  url: str
+            """
+            self.url = url
 
     # Exceptions
     class NoSearchResultsFoundError(Exception):

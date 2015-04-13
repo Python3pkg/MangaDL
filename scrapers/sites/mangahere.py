@@ -1,4 +1,3 @@
-import re
 import requests
 from bs4 import BeautifulSoup
 from scrapers import MangaScraper
@@ -35,7 +34,7 @@ class MangaHere(MangaScraper):
         # URL, Title, Chapter Count
         url = name_one['href']
         title = name_one.string
-        chapter_count = name_two.string
+        chapter_count = name_two.string.lstrip('Ch.')
 
         # Alt title parsing
         alt_titles = str(first_result.dd.string)
@@ -73,7 +72,7 @@ class MangaHere(MangaScraper):
                 # URL and Chapter
                 link = detail.find('span', 'left').a
                 url = link['href']
-                chapter = re.sub(r'[^\d.]+', '', link.string)
+                chapter = link.string.strip().split(' ')[-1]
 
                 self._chapters[chapter] = MangaHere.ChapterMeta(url, title, chapter)
 
@@ -85,7 +84,7 @@ class MangaHere(MangaScraper):
             """
             Load and parse all available pages for the series
             """
-            # Set up and execute the pages request for the series
+            # Set up and execute the pages request for the chapter
             pages_request = requests.get(self.url)
             pages_soup = BeautifulSoup(pages_request.content)
 
@@ -95,6 +94,22 @@ class MangaHere(MangaScraper):
 
             # Iterate, parse and add the pages
             for page in page_list:
-                url = page.get('value')
+                url = page['value']
                 page_no = page.string
-                self._pages[page_no] = MangaScraper.PageMeta(url, page_no)
+                self._pages[page_no] = MangaHere.PageMeta(url, page_no)
+
+    class PageMeta(MangaScraper.PageMeta):
+        """
+        Page metadata
+        """
+        def _load_image(self):
+            """
+            Load and parse a pages image
+            """
+            # Set up and execute the page request for the chapter
+            page_request = requests.get(self.url)
+            page_soup = BeautifulSoup(page_request.content)
+
+            # Get the page image link
+            image = page_soup.find('section', 'read_img').find('img', id='image')
+            self._image = MangaScraper.ImageMeta(image['src'])
