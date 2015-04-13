@@ -74,7 +74,7 @@ class MangaHere(MangaScraper):
                 url = link['href']
                 chapter = link.string.strip().split(' ')[-1]
 
-                self._chapters[chapter] = MangaHere.ChapterMeta(url, title, chapter)
+                self._chapters[chapter] = MangaHere.ChapterMeta(url, title, chapter, self)
 
     class ChapterMeta(MangaScraper.ChapterMeta):
         """
@@ -96,7 +96,7 @@ class MangaHere(MangaScraper):
             for page in page_list:
                 url = page['value']
                 page_no = page.string
-                self._pages[page_no] = MangaHere.PageMeta(url, page_no)
+                self._pages[page_no] = MangaHere.PageMeta(url, page_no, self)
 
     class PageMeta(MangaScraper.PageMeta):
         """
@@ -112,4 +112,4 @@ class MangaHere(MangaScraper):
 
             # Get the page image link
             image = page_soup.find('section', 'read_img').find('img', id='image')
-            self._image = MangaScraper.ImageMeta(image['src'])
+            self._image = MangaScraper.ImageMeta(image['src'], self)

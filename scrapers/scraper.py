@@ -81,7 +81,7 @@ class MangaScraper:
         """
         __metaclass__ = ABCMeta
 
-        def __init__(self, url, title, chapter):
+        def __init__(self, url, title, chapter, series):
             """
             Initialize a new Chapter Meta instance
             :param url: Link to the chapter
@@ -92,10 +92,14 @@ class MangaScraper:
 
             :param chapter: The chapter number
             :type  chapter: str
+
+            :param series: The instantiating SeriesMeta instance
+            :type  series: SeriesMeta
             """
             self.url = url
             self.title = title
             self.chapter = chapter
+            self.series = series
             self._pages = OrderedDict()
 
         @abstractmethod
@@ -119,7 +123,7 @@ class MangaScraper:
         """
         __metaclass__ = ABCMeta
 
-        def __init__(self, url, page_no):
+        def __init__(self, url, page_no, chapter):
             """
             Initialize a new Page Meta instance
             :param url: Link to the page
@@ -127,9 +131,13 @@ class MangaScraper:
 
             :param page_no: The page number
             :type  page_no: str
+
+            :param chapter: The instantiating ChapterMeta instance
+            :type  chapter: SeriesMeta
             """
             self.url = url
             self.page = page_no
+            self.chapter = chapter
             self._image = None
 
         @abstractmethod
@@ -151,13 +159,17 @@ class MangaScraper:
         """
         Image metadata base class
         """
-        def __init__(self, url):
+        def __init__(self, url, page):
             """
             Initialize a new Image Meta instance
             :param url: Link to the image
             :type  url: str
+
+            :param page: The instantiating PageMeta instance
+            :type  page: PageMeta
             """
             self.url = url
+            self.page = page
 
     # Exceptions
     class NoSearchResultsFoundError(Exception):
