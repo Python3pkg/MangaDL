@@ -2,6 +2,7 @@ import sys
 import logging
 from os import path, makedirs
 from clint.textui import puts, prompt, colored
+from scrapers import ScraperManager
 from src.config import Config
 from src.manga import Manga, SeriesMeta, NoSearchResultsError, ImageResourceUnavailableError, MangaAlreadyExistsError
 
@@ -19,6 +20,7 @@ class CLI:
         Initialize a new CLI instance
         """
         self.config = Config()
+        self.scraper_manager = ScraperManager()
         self.log = logging.getLogger('manga-dl.cli')
         if path.isfile(self.config.app_config_path):
             self.config = self.config.app_config()
@@ -203,21 +205,24 @@ class CLI:
         # Sites
         while True:
             self.log.info('Prompting for Manga sites to enable')
-            sites = []
             puts('\nWhich Manga websites would you like to enable?')
 
-            sites_dictionary = ['MangaHere', 'MangaFox', 'MangaPanda', 'MangaReader']
-            for key, site in enumerate(sites_dictionary, 1):
+            sites = self.scraper_manager.scrapers
+            sites_map = {}
+            for key, site in enumerate(sites, 1):
+                sites_map[key] = site
                 puts('{key}. {site}'.format(key=key, site=site))
 
-            site_keys = prompt.query('Provide a comma separated list, highest priority first', '1,2,3,4')
+            csv = ','.join(str(i) for i in range(1, len(sites) + 1))  # Generate a comma separated range list
+            site_keys = prompt.query('Provide a comma separated list, highest priority first', csv)
             site_keys = site_keys.split(',')
 
             try:
+                enabled_sites = []
                 for site_key in site_keys:
-                    site_key = int(site_key) - 1
-                    self.log.info('Appending site: {site}'.format(site=sites_dictionary[site_key]))
-                    sites.append(sites_dictionary[site_key])
+                    site_key = int(site_key.strip())
+                    self.log.info('Appending site: {site}'.format(site=sites_map[site_key]))
+                    enabled_sites.append(sites_map[site_key])
             except (ValueError, IndexError):
                 self.log.info('User provided invalid sites input')
                 puts('Please provide a comma separated list of ID\'s from the above list')
@@ -243,7 +248,7 @@ class CLI:
         config = {'Paths': {'manga_dir': manga_dir, 'series_dir': series_dir, 'chapter_dir': chapter_dir,
                             'page_filename': page_filename},
 
-                  'Common': {'sites': ','.join(sites), 'synonyms': str(synonyms_enabled), 'debug': debug_mode,
+                  'Common': {'sites': ','.join(enabled_sites), 'synonyms': str(synonyms_enabled), 'debug': debug_mode,
                              'throttle': 1}}
 
         self.config.app_config_create(config)
