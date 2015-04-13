@@ -7,7 +7,7 @@ from collections import OrderedDict
 from urllib import request
 from urllib.error import ContentTooShortError
 from configparser import ConfigParser
-from clint.textui import puts
+from clint.textui import puts, colored
 from progressbar import ProgressBar, Percentage, Bar, SimpleProgress, AdaptiveETA
 from scrapers import ScraperManager
 from src.config import Config
@@ -128,7 +128,13 @@ class Manga:
         :type  overwriting: bool
         """
         self.log.info('Downloading chapter {chapter}: {title}'.format(chapter=chapter.chapter, title=chapter.title))
-        puts('\nChapter {chapter}: {title}'.format(chapter=chapter.chapter, title=chapter.title))
+
+        # Output the formatted Chapter title to the console
+        chapter_header = '\nChapter {chapter}: {title}'.format(chapter=chapter.chapter, title=chapter.title)
+        chapter_header = colored.yellow(chapter_header, bold=True)
+        puts(chapter_header)
+
+        # Assign the page counts
         pages = chapter.pages
         page_count = len(pages)
         self.log.info('{num} pages found'.format(num=page_count))
