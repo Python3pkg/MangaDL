@@ -4,11 +4,12 @@ from time import sleep
 import importlib
 import logging
 import re
+from collections import OrderedDict
 from urllib import request
+from urllib.error import ContentTooShortError
 from configparser import ConfigParser
 from clint.textui import puts
 from progressbar import ProgressBar, Percentage, Bar, SimpleProgress, AdaptiveETA
-from mangopi.metasite import MetaSite
 from src.config import Config
 
 
@@ -23,14 +24,12 @@ class Manga:
         self.config = Config().app_config()
         self.log = logging.getLogger('manga-dl.manga')
         self._site_modules = self._load_sites()
-        self.meta_search = MetaSite(self._site_modules)
         self.throttle = self.config.getint('Common', 'throttle', fallback=1)
-        self.progress_widget = [Percentage(), ' ', Bar(), ' Pages: ', SimpleProgress(), ' ', AdaptiveETA()]
+        self.progress_widget = [Percentage(), ' ', Bar(), ' Page: ', SimpleProgress(), ' ', AdaptiveETA()]
 
         # Define the directory / filename templates
         self.manga_dir_template = self.config.get('Paths', 'manga_dir')
         self.series_dir_template = self.config.get('Paths', 'series_dir')
-        self.volume_dir_template = self.config.get('Paths', 'volume_dir')
         self.chapter_dir_template = self.config.get('Paths', 'chapter_dir')
         self.page_filename_template = self.config.get('Paths', 'page_filename')
 
@@ -50,7 +49,7 @@ class Manga:
         site_modules = []
         for site in sites:
             name = re.sub(r'\W+', '', site.lower())
-            module = importlib.import_module('mangopi.site.' + name)
+            module = importlib.import_module('scrapers.sites.' + name)
 
             site_module = getattr(module, site)
             self.log.info('Appending module: {module}'.format(module=str(site_module)))
@@ -65,28 +64,27 @@ class Manga:
         :type  title: str
 
         :return: Ordered dictionary of mangopi metasite chapter instances
-        :rtype : collections.OrderedDict of (str, MetaSite.MetaChapter)
+        :rtype : MetaChapter
         """
-        self.log.info('Searching for series: {title}'.format(title=title))
-        series = self.meta_search.series(title)
-        puts('Loading Manga chapter data, this may take a few moments')
-        try:
-            chapters = series.chapters
-        except TypeError:
+        for module in self._site_modules:
+            self.log.info('Assigning site: ' + str(module))
+            self.log.info('Searching for series: {title}'.format(title=title))
+            site = module()
+            try:
+                site.series = title
+            except NoSearchResultsError:
+                continue
+            break
+        else:
             raise NoSearchResultsError
 
-        # If we have no chapters, we didn't get any matching search results
-        self.log.info('{num} chapters found'.format(num=len(chapters)))
-        if not len(chapters):
-            raise NoSearchResultsError
+        return site.series
 
-        return chapters
-
-    def create_series(self, title):
+    def create_series(self, series):
         """
         Create a new Manga series placeholder on the filesystem
-        :param title: The title of the Manga series
-        :type  title: str
+        :param series: The meta instance of the Manga series
+        :type  series: SeriesMeta
         """
         # Set up the manga directory
         self.log.debug('Formatting the manga directory path')
@@ -95,7 +93,7 @@ class Manga:
 
         # Set up the series directory
         self.log.debug('Formatting the series directory path')
-        series_path = os.path.join(manga_path, self.series_dir_template.format(series=title))
+        series_path = os.path.join(manga_path, self.series_dir_template.format(series=series.title))
         self.log.debug('Series path set: {path}'.format(path=series_path))
 
         if not os.path.isdir(series_path):
@@ -104,15 +102,13 @@ class Manga:
 
         # Escape our dir templates for regex parsing
         series_re_template  = self.series_dir_template
-        volume_re_template  = self.volume_dir_template
         chapter_re_template = self.chapter_dir_template.replace('[', r'\[').replace(']', r'\]')
         page_re_template    = self.page_filename_template
 
         # Format the pattern templates
         series_pattern  = '^' + series_re_template.format(series=r'(?P<series>\.+)') + '$'
-        volume_pattern  = '^' + volume_re_template.format(volume=r'(?P<volume>\d+(\.\d)?)') + '$'
         chapter_pattern = '^' + chapter_re_template.format(chapter=r'(?P<chapter>\d+(\.\d)?)',
-                                                            title=r'(?P<title>.+)') + '$'
+                                                           title=r'(?P<title>.+)') + '$'
         page_pattern    = '^' + page_re_template.format(page=r'(?P<page>\d+(\.\d)?)', ext=r'\w{3,4}') + '$'
 
         # Set up the series configuration
@@ -120,7 +116,6 @@ class Manga:
 
         config.add_section('Patterns')
         config.set('Patterns', 'series_pattern', series_pattern)
-        config.set('Patterns', 'volume_pattern', volume_pattern)
         config.set('Patterns', 'chapter_pattern', chapter_pattern)
         config.set('Patterns', 'page_pattern', page_pattern)
 
@@ -151,27 +146,21 @@ class Manga:
         :type  chapter: MetaSite.MetaChapter
 
         :param manga: The local Manga series
-        :type  manga: MangaMeta
+        :type  manga: SeriesMeta
 
         :param overwriting: Overwrite existing pages
         :type  overwriting: bool
         """
-        self.log.info('Downloading chapter {num}: {title}'.format(num=chapter.chapter, title=chapter.title))
-        puts('Loading Manga page data, this may take a while')
+        self.log.info('Downloading chapter {chapter}: {title}'.format(chapter=chapter.chapter, title=chapter.title))
+        puts('\nChapter {chapter}: {title}'.format(chapter=chapter.chapter, title=chapter.title))
         pages = chapter.pages
         page_count = len(pages)
         self.log.info('{num} pages found'.format(num=page_count))
 
-        # Set up the volume directory
-        self.log.debug('Formatting the volume directory path')
-        volume = chapter.volume if hasattr(chapter, 'volume') else 0
-        volume_path = os.path.join(manga.path, self.volume_dir_template.format(volume=volume))
-        self.log.debug('Volume path set: {path}'.format(path=volume_path))
-
         # Set up the Chapter directory
         self.log.debug('Formatting chapter directory path')
-        chapter_path = os.path.join(volume_path, self.chapter_dir_template.format(chapter=chapter.chapter,
-                                                                                  title=chapter.title))
+        chapter_path = os.path.join(manga.path, self.chapter_dir_template.format(chapter=chapter.chapter,
+                                                                                 title=chapter.title))
         self.log.debug('Chapter path set: {path}'.format(path=chapter_path))
 
         if not os.path.isdir(chapter_path):
@@ -182,16 +171,16 @@ class Manga:
         progress_bar = ProgressBar(page_count, self.progress_widget)
         progress_bar.start()
 
-        for page_no, page in enumerate(pages, 1):
+        for index, page in enumerate(pages.values(), 1):
             # Set the filename and path
-            page_filename = self.page_filename_template.format(page=page_no, ext='jpg')
+            page_filename = self.page_filename_template.format(page=page.page, ext='jpg')
             self.log.debug('Page filename set: {filename}'.format(filename=page_filename))
             page_path = os.path.join(chapter_path, page_filename)
 
             # If we're not overwriting and the file exists, skip it
             if not overwriting and os.path.exists(page_path):
-                self.log.info('Skipping existing page ({page})'.format(page=page_no))
-                progress_bar.update(page_no)
+                self.log.info('Skipping existing page ({page})'.format(page=page.page))
+                progress_bar.update(index)
                 continue
 
             # Download and save the page image
@@ -200,10 +189,28 @@ class Manga:
                 self.log.warn('Page found but it has no image resource available')
                 raise ImageResourceUnavailableError
 
-            request.urlretrieve(image.url, page_path)
-            self.log.debug('Updating progress page number: {page_no}'.format(page_no=page_no))
-            progress_bar.update(page_no)
+            failures = 0
+            retry_throttle = 2
+            while True:
+                try:
+                    request.urlretrieve(image.url, page_path)
+                except ContentTooShortError:
+                    # If we've already tried this download several times, give up
+                    if failures >= 5:
+                        self.log.error('Unable to download a page after several attempts were made, giving up')
+                        raise
+
+                    # Increase our failure count and throttle, then try again
+                    failures += 1
+                    sleep(retry_throttle)
+                    retry_throttle *= 2
+                    self.log.warn('Page download failed partway through, waiting a couple seconds then trying again')
+                break
+
+            self.log.debug('Updating progress page number: {page_no}'.format(page_no=page.page))
+            progress_bar.update(index)
             sleep(self.throttle)
+        puts()
 
     def update(self, chapter, manga, checking_pages=True):
         """
@@ -212,7 +219,7 @@ class Manga:
         :type  chapter: MetaSite.MetaChapter
 
         :param manga: The local Manga series being updated
-        :type  manga: MangaMeta
+        :type  manga: SeriesMeta
         """
         # If we don't have this chapter yet, download_chapter it
         if chapter.chapter in manga.chapters and not checking_pages:
@@ -230,25 +237,26 @@ class Manga:
         :return: MetaChapter instance if it exists, otherwise None
         :rtype : object or None
         """
+        pass
 
     def all(self):
         """
         Return all locally available Manga saves
 
         :return: List of MangaMeta instances
-        :rtype : list of MangaMeta
+        :rtype : list of SeriesMeta
         """
         manga_list = []
         for path_item in os.listdir(self.config.get('Paths', 'manga_dir')):
             try:
-                manga_list.append(MangaMeta(path_item))
+                manga_list.append(SeriesMeta(path_item))
             except MangaNotSavedError:
                 continue
         return manga_list
 
 
 # noinspection PyTypeChecker
-class MangaMeta:
+class SeriesMeta:
     """
     Manga Metadata
     """
@@ -272,7 +280,7 @@ class MangaMeta:
 
         # Manga metadata placeholders
         self.path = None
-        self.volumes = {}
+        self.chapters = OrderedDict()
 
         self._load()
 
@@ -298,7 +306,7 @@ class MangaMeta:
                 self._series_config.read(series_config_path)
 
                 # Compile the regex patterns
-                self.volume_pattern  = re.compile(self._series_config.get('Patterns', 'volume_pattern', raw=True))
+                self.series_pattern  = re.compile(self._series_config.get('Patterns', 'series_pattern', raw=True))
                 self.chapter_pattern = re.compile(self._series_config.get('Patterns', 'chapter_pattern', raw=True))
                 self.page_pattern    = re.compile(self._series_config.get('Patterns', 'page_pattern', raw=True))
 
@@ -309,66 +317,17 @@ class MangaMeta:
             raise MangaNotSavedError('Manga title "{manga}" could not be loaded from the filesystem'
                                      .format(manga=self.title))
 
-        # Successful match if we're still here, load all available volumes
-        self._load_volumes()
-
-    def _load_volumes(self):
-        """
-        Load all available volumes for the Manga series
-        """
-        for path_item in os.listdir(self.path):
-            match = self.volume_pattern.match(path_item)
-            if match:
-                volume_path = os.path.join(self.path, path_item)
-                volume = match.group('volume')  # volume number
-                self.volumes[volume] = VolumeMeta(volume_path, volume, self)
-
-    @property
-    def chapters(self):
-        """
-        Get and return all chapters for all volumes
-        """
-        chapters = {}
-        for no, volume in self.volumes.items():
-            chapters.update(volume.chapters)
-        return chapters
-
-
-# noinspection PyTypeChecker
-class VolumeMeta:
-    """
-    Manga Volume Metadata
-    """
-    def __init__(self, path, volume, manga):
-        """
-        Initialize a new Volume Meta instance
-        :param path: Filesystem path to the volume
-        :type  path: str
-
-        :param volume: The volume number
-        :type  volume: str
-
-        :param manga: The MangaMeta instance for this volume
-        :type  manga: MangaMeta
-        """
-        self.log = logging.getLogger('manga-dl.volume-meta')
-
-        # Volume metadata
-        self.volume   = volume
-        self.path     = path
-        self.manga    = manga
-        self.chapters = {}
-
+        # Successful match if we're still here, load all available chapters
         self._load_chapters()
 
     def _load_chapters(self):
         """
         Load all available chapters for the volume
         """
-        volume_paths = os.listdir(self.path)
+        series_path = os.listdir(self.path)
 
-        for path_item in volume_paths:
-            match = self.manga.chapter_pattern.match(path_item)
+        for path_item in series_path:
+            match = self.chapter_pattern.match(path_item)
             if match:
                 chapter_path = os.path.join(self.path, path_item)
                 chapter = match.group('chapter')  # chapter number
@@ -402,7 +361,7 @@ class ChapterMeta:
         self.title   = title
         self.path    = path
         self.manga   = volume.manga
-        self.pages   = {}
+        self.pages   = OrderedDict()
 
         self._load_pages()
 

@@ -18,7 +18,7 @@ def main():
     if config and config.getboolean('Common', 'debug'):
         log.setLevel(logging.DEBUG)
     else:
-        log.setLevel(logging.NOTSET)
+        log.setLevel(logging.CRITICAL)
 
     console_logger = logging.StreamHandler()
     console_logger.setLevel(logging.DEBUG)

@@ -3,7 +3,7 @@ import logging
 from os import path, makedirs
 from clint.textui import puts, prompt, colored
 from src.config import Config
-from src.manga import Manga, MangaMeta, NoSearchResultsError, ImageResourceUnavailableError, MangaAlreadyExistsError
+from src.manga import Manga, SeriesMeta, NoSearchResultsError, ImageResourceUnavailableError, MangaAlreadyExistsError
 
 
 # noinspection PyUnboundLocalVariable,PyBroadException
@@ -73,10 +73,11 @@ class CLI:
         Download a new Manga title
         """
         title = prompt.query('What is the title of the Manga series?').strip()
+        puts()
 
         # Fetch all available chapters
         try:
-            chapters = self.manga.search(title)
+            series = self.manga.search(title)
         except NoSearchResultsError:
             puts('No search results returned for {query}'.format(query=colored.blue(title, bold=True)))
             if prompt.query('Exit?', 'Y').lower().strip() in self.YES_RESPONSES:
@@ -85,21 +86,21 @@ class CLI:
 
         # Create the series
         try:
-            self.manga.create_series(title)
+            self.manga.create_series(series)
         except MangaAlreadyExistsError:
             # Series already exists, prompt the user for confirmation to continue
             puts('This Manga has already been downloaded')
             continue_prompt = prompt.query('Do you still wish to continue and overwrite the series?', 'N')
-            if continue_prompt not in self.YES_RESPONSES:
+            if continue_prompt.lower().strip() not in self.YES_RESPONSES:
                 self.exit()
 
         # Print out the number of chapters to be downloaded
-        chapter_count = len(chapters)
-        puts('Downloading {num} chapters'.format(num=chapter_count))
+        chapter_count = len(series.chapters)
+        puts('{count} chapters added to queue'.format(count=chapter_count))
 
         # Loop through our chapters and download_chapter them
-        for no, chapter in chapters.items():
-            manga = MangaMeta(title)
+        for chapter_no, chapter in series.chapters.items():
+            manga = SeriesMeta(series.title)
             try:
                 self.manga.download_chapter(chapter, manga)
             except ImageResourceUnavailableError:
@@ -112,7 +113,8 @@ class CLI:
                 self.log.warn('An exception was raised downloading this chapter', exc_info=e)
                 puts('Chapter does not appear to have any readable pages, skipping')
                 continue
-            except Exception:
+            except Exception as e:
+                self.log.error('Uncaught exception thrown', exc_info=e)
                 response = prompt.query('An unknown error occurred trying to download this chapter. Continue?', 'Y')
                 if response.lower().strip() in self.YES_RESPONSES:
                     continue
@@ -151,7 +153,7 @@ class CLI:
             return puts('No search results returned for {query} (the title may have been licensed or otherwise removed)'
                         .format(query=colored.blue(local_manga.title, bold=True)))
 
-        for no, remote_chapter in remote_chapters.items():
+        for remote_chapter in remote_chapters:
             try:
                 self.manga.update(remote_chapter, local_manga)
             except ImageResourceUnavailableError:
@@ -164,7 +166,8 @@ class CLI:
                 self.log.warn('An exception was raised downloading this chapter', exc_info=e)
                 puts('Chapter does not appear to have any readable pages, skipping')
                 continue
-            except Exception:
+            except Exception as e:
+                self.log.error('Uncaught exception thrown', exc_info=e)
                 response = prompt.query('An unknown error occurred trying to download this chapter. Continue?', 'Y')
                 if response.lower().strip() in self.YES_RESPONSES:
                     continue

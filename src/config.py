@@ -8,7 +8,7 @@ class Config:
     MangaDL configuration management
     """
     CONFIGS = (
-        ('Paths', ('manga_dir', 'chapter_dir', 'series_dir', 'volume_dir' 'page_filename')),
+        ('Paths', ('manga_dir', 'chapter_dir', 'series_dir', 'page_filename')),
         ('Common', ('sites', 'synonyms', 'throttle', 'debug'))
     )
 
