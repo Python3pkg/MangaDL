@@ -43,7 +43,7 @@ class MangaHere(MangaScraper):
             alt_titles = alt_titles.replace('Alternative Name:', '')
             alt_titles = [title.strip() for title in alt_titles.split(';')]
 
-        self._series = self.SeriesMeta(url, title, alt_titles, chapter_count)
+        self._series = MangaHere.SeriesMeta(url, title, alt_titles, chapter_count)
 
     class SeriesMeta(MangaScraper.SeriesMeta):
         """
@@ -75,4 +75,26 @@ class MangaHere(MangaScraper):
                 url = link['href']
                 chapter = re.sub(r'[^\d.]+', '', link.string)
 
-                self._chapters[chapter] = MangaScraper.ChapterMeta(url, title, chapter)  # TODO
+                self._chapters[chapter] = MangaHere.ChapterMeta(url, title, chapter)
+
+    class ChapterMeta(MangaScraper.ChapterMeta):
+        """
+        Chapter metadata
+        """
+        def _load_pages(self):
+            """
+            Load and parse all available pages for the series
+            """
+            # Set up and execute the pages request for the series
+            pages_request = requests.get(self.url)
+            pages_soup = BeautifulSoup(pages_request.content)
+
+            # Get a list of pages
+            go_header = pages_soup.find('div', 'go_page')
+            page_list = go_header.find('span', 'right').find('select').find_all('option')
+
+            # Iterate, parse and add the pages
+            for page in page_list:
+                url = page.get('value')
+                page_no = page.string
+                self._pages[page_no] = MangaScraper.PageMeta(url, page_no)
