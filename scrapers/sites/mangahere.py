@@ -113,3 +113,5 @@ class MangaHere(MangaScraper):
             # Get the page image link
             image = page_soup.find('section', 'read_img').find('img', id='image')
             self._image = MangaScraper.ImageMeta(image['src'], self)
+
+Scraper = 'MangaHere', MangaHere
