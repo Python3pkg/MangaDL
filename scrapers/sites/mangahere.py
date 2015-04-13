@@ -1,6 +1,7 @@
+import re
 import requests
 from bs4 import BeautifulSoup
-from scrapers import MangaScraper, SeriesMeta
+from scrapers import MangaScraper
 
 
 class MangaHere(MangaScraper):
@@ -14,9 +15,10 @@ class MangaHere(MangaScraper):
         search_soup = BeautifulSoup(search_request.content)
 
         # Pull the first listed result
-        results = search_soup.find('div', 'result_search')
-        first_result = results.dl
-        if not first_result.dt:
+        try:
+            results = search_soup.find('div', 'result_search')
+            first_result = results.dl
+        except AttributeError:
             raise self.NoSearchResultsFoundError
 
         # Search result list data
@@ -34,4 +36,30 @@ class MangaHere(MangaScraper):
             alt_titles = alt_titles.replace('Alternative Name:', '')
             alt_titles = [title.strip() for title in alt_titles.split(';')]
 
-        self._series = SeriesMeta(url, title, alt_titles, chapter_count)
+        self._series = self.SeriesMeta(url, title, alt_titles, chapter_count)
+
+    class SeriesMeta(MangaScraper.SeriesMeta):
+        def _load_chapters(self):
+            # Set up and execute the Table of Contents request
+            toc_request = requests.get(self.url)
+            toc_soup = BeautifulSoup(toc_request.content)
+
+            # Get a list of chapters
+            detail_list = toc_soup.find('div', 'detail_list').ul
+            if not detail_list:
+                return
+            detail_list = detail_list.find_all('li')
+
+            for detail in detail_list:
+                # Parse and set the title
+                try:
+                    title = detail.find('span', 'mr6').nextSibling.strip()
+                except AttributeError:
+                    title = 'Untitled'
+
+                # URL and Chapter
+                link = detail.find('span', 'left').a
+                url = link['href']
+                chapter = re.sub(r'[^\d.]+', '', link.string)
+
+                self.chapters[chapter] = MangaScraper.ChapterMeta(url, title, chapter)
