@@ -6,11 +6,18 @@ from scrapers import MangaScraper
 
 class MangaHere(MangaScraper):
     def __init__(self):
+        """
+        Initialize a new MangaHere scraper instance
+        """
         super().__init__('http://www.mangahere.co/search.php')
 
     @MangaScraper.series.setter
     def series(self, title):
-        # Set up and execute the search request
+        """
+        Set up and execute the search request
+        :param title: Title of the manga series
+        :type  title: str
+        """
         search_request = requests.get(self.search_url, params={'name': title})
         search_soup = BeautifulSoup(search_request.content)
 
@@ -39,7 +46,13 @@ class MangaHere(MangaScraper):
         self._series = self.SeriesMeta(url, title, alt_titles, chapter_count)
 
     class SeriesMeta(MangaScraper.SeriesMeta):
+        """
+        Series metadata
+        """
         def _load_chapters(self):
+            """
+            Load and parse all available chapters for the series
+            """
             # Set up and execute the Table of Contents request
             toc_request = requests.get(self.url)
             toc_soup = BeautifulSoup(toc_request.content)
@@ -62,4 +75,4 @@ class MangaHere(MangaScraper):
                 url = link['href']
                 chapter = re.sub(r'[^\d.]+', '', link.string)
 
-                self.chapters[chapter] = MangaScraper.ChapterMeta(url, title, chapter)
+                self._chapters[chapter] = MangaScraper.ChapterMeta(url, title, chapter)  # TODO

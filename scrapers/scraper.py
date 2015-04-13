@@ -28,7 +28,7 @@ class MangaScraper:
     # Metadata base classes
     class SeriesMeta:
         """
-        Series metadata
+        Series metadata base class
         """
         __metaclass__ = ABCMeta
 
@@ -52,17 +52,23 @@ class MangaScraper:
             self.title = title
             self.alt_titles = alt_titles
             self.chapter_count = chapter_count
-
-            self.chapters = {}
-            self._load_chapters()
+            self._chapters = {}
 
         @abstractmethod
         def _load_chapters(self):
             pass
 
+        @property
+        def chapters(self):
+            if self._chapters:
+                return self._chapters
+
+            self._load_chapters()
+            return self._chapters
+
     class ChapterMeta:
         """
-        Chapter metadata
+        Chapter metadata base class
         """
         __metaclass__ = ABCMeta
 
