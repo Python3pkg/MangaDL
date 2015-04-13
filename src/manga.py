@@ -1,7 +1,6 @@
 import os
 import platform
 from time import sleep
-import importlib
 import logging
 import re
 from collections import OrderedDict
@@ -10,6 +9,7 @@ from urllib.error import ContentTooShortError
 from configparser import ConfigParser
 from clint.textui import puts
 from progressbar import ProgressBar, Percentage, Bar, SimpleProgress, AdaptiveETA
+from scrapers import ScraperManager
 from src.config import Config
 
 
@@ -23,7 +23,7 @@ class Manga:
         """
         self.config = Config().app_config()
         self.log = logging.getLogger('manga-dl.manga')
-        self._site_modules = self._load_sites()
+        self._site_scrapers = ScraperManager().scrapers
         self.throttle = self.config.getint('Common', 'throttle', fallback=1)
         self.progress_widget = [Percentage(), ' ', Bar(), ' Page: ', SimpleProgress(), ' ', AdaptiveETA()]
 
@@ -32,30 +32,6 @@ class Manga:
         self.series_dir_template = self.config.get('Paths', 'series_dir')
         self.chapter_dir_template = self.config.get('Paths', 'chapter_dir')
         self.page_filename_template = self.config.get('Paths', 'page_filename')
-
-    def _load_sites(self):
-        """
-        Load the configured sites
-        :return: A list of mangopi site classes
-        :rtype : list
-        """
-        sites = self.config.get('Common', 'sites')
-        if not isinstance(sites, str):
-            return
-        sites = sites.split(',')
-
-        # Import the site modules
-        self.log.info('Loading site modules: {sites}'.format(sites=str(sites)))
-        site_modules = []
-        for site in sites:
-            name = re.sub(r'\W+', '', site.lower())
-            module = importlib.import_module('scrapers.sites.' + name)
-
-            site_module = getattr(module, site)
-            self.log.info('Appending module: {module}'.format(module=str(site_module)))
-            site_modules.append(site_module)
-
-        return site_modules
 
     def search(self, title):
         """
@@ -66,10 +42,10 @@ class Manga:
         :return: Ordered dictionary of mangopi metasite chapter instances
         :rtype : MetaChapter
         """
-        for module in self._site_modules:
-            self.log.info('Assigning site: ' + str(module))
+        for name, site_class in self._site_scrapers.items():
+            self.log.info('Assigning site: ' + name)
             self.log.info('Searching for series: {title}'.format(title=title))
-            site = module()
+            site = site_class()
             try:
                 site.series = title
             except NoSearchResultsError:
@@ -337,9 +313,9 @@ class SeriesMeta:
 
 class ChapterMeta:
     """
-    Volume Chapter Metadata
+    Series Chapter Metadata
     """
-    def __init__(self, path, chapter, title, volume):
+    def __init__(self, path, chapter, title, series):
         """
         Initialize a new Chapter Meta instance
         :param path: Filesystem path to the chapter
@@ -351,8 +327,8 @@ class ChapterMeta:
         :param title: The chapter title
         :type  title: str
 
-        :param volume: The VolumeMeta instance for this chapter
-        :type  volume: VolumeMeta
+        :param series: The SeriesMeta instance for this chapter
+        :type  series: SeriesMeta
         """
         self.log = logging.getLogger('manga-dl.chapter-meta')
 
@@ -360,7 +336,7 @@ class ChapterMeta:
         self.chapter = chapter
         self.title   = title
         self.path    = path
-        self.manga   = volume.manga
+        self.series  = series
         self.pages   = OrderedDict()
 
         self._load_pages()
@@ -372,7 +348,7 @@ class ChapterMeta:
         chapter_paths = os.listdir(self.path)
 
         for path_item in chapter_paths:
-            match = self.manga.page_pattern.match(path_item)
+            match = self.series.page_pattern.match(path_item)
             if match:
                 page_path = os.path.join(self.path, path_item)
                 page = match.group('page')  # page number
