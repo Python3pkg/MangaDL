@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from abc import ABCMeta, abstractmethod
 
 
@@ -52,18 +53,26 @@ class MangaScraper:
             self.title = title
             self.alt_titles = alt_titles
             self.chapter_count = chapter_count
-            self._chapters = {}
+            self._chapters = OrderedDict()
 
         @abstractmethod
         def _load_chapters(self):
+            """
+            Load and parse all available chapters for the series
+            """
             pass
 
         @property
         def chapters(self):
+            """
+            Chapters property
+            """
             if self._chapters:
                 return self._chapters
 
             self._load_chapters()
+            # Chapters are inserted in backwards order, so we need to reverse the dictionary
+            self._chapters = OrderedDict(reversed(list(self._chapters.items())))
             return self._chapters
 
     class ChapterMeta:
@@ -87,6 +96,40 @@ class MangaScraper:
             self.url = url
             self.title = title
             self.chapter = chapter
+            self._pages = OrderedDict()
+
+        @abstractmethod
+        def _load_pages(self):
+            pass
+
+        @property
+        def pages(self):
+            """
+            Chapters property
+            """
+            if self._pages:
+                return self._pages
+
+            self._load_pages()
+            return self._pages
+
+    class PageMeta:
+        """
+        Page metadata base class
+        """
+        __metadata__ = ABCMeta
+
+        def __init__(self, url, page_no):
+            """
+            Initialize a new Page Meta instance
+            :param url: Link to the page
+            :type  url: str
+
+            :param page_no: The page number
+            :type  page_no: str
+            """
+            self.url = url
+            self.page = page_no
 
     # Exceptions
     class NoSearchResultsFoundError(Exception):
