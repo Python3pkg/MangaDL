@@ -148,12 +148,12 @@ class CLI:
 
         # Run a search query on the selected title
         try:
-            remote_chapters = self.manga.search(local_manga.title)
+            remote_series = self.manga.search(local_manga.title)
         except NoSearchResultsError:
             return puts('No search results returned for {query} (the title may have been licensed or otherwise removed)'
                         .format(query=colored.blue(local_manga.title, bold=True)))
 
-        for remote_chapter in remote_chapters:
+        for remote_chapter in remote_series.chapters.values():
             try:
                 self.manga.update(remote_chapter, local_manga)
             except ImageResourceUnavailableError:
@@ -232,7 +232,6 @@ class CLI:
 
         # Paths
         series_dir = '{series}'
-        volume_dir = 'Volume {volume}'
         chapter_dir = '[Chapter {chapter}] - {title}'
         page_filename = 'page-{page}.{ext}'
 
@@ -241,8 +240,8 @@ class CLI:
         debug_mode = True if debug_mode.lower().strip() in self.YES_RESPONSES else False
 
         # Define the configuration values
-        config = {'Paths': {'manga_dir': manga_dir, 'series_dir': series_dir, 'volume_dir': volume_dir,
-                            'chapter_dir': chapter_dir, 'page_filename': page_filename},
+        config = {'Paths': {'manga_dir': manga_dir, 'series_dir': series_dir, 'chapter_dir': chapter_dir,
+                            'page_filename': page_filename},
 
                   'Common': {'sites': ','.join(sites), 'synonyms': str(synonyms_enabled), 'debug': debug_mode,
                              'throttle': 1}}
