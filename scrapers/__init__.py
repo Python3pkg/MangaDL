@@ -1,1 +1,1 @@
-from .scraper import MangaScraper, SeriesMeta
+from .scraper import MangaScraper
