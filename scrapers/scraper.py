@@ -19,7 +19,8 @@ class ScraperManager:
         """
         Load all available scraper sites
         """
-        sites_path = os.path.join(os.getcwd(), 'scrapers', 'sites')
+        base_dir = os.path.dirname(os.path.realpath(__file__))
+        sites_path = os.path.join(base_dir, 'scrapers', 'sites')
         contents = os.listdir(sites_path)
         imps = [p.rstrip('.py') for p in contents if not p.startswith('_') and p.endswith('.py')]
 
@@ -200,7 +201,3 @@ class MangaScraper:
             """
             self.url = url
             self.page = page
-
-    # Exceptions
-    class NoSearchResultsFoundError(Exception):
-        pass

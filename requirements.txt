@@ -1,5 +1,5 @@
-requests<2.7
-img2pdf<0.2
-clint<0.5
-appdirs<1.5
-progressbar33<2.5
+requests>=2.6
+img2pdf>=0.1.5
+clint>=0.4.1
+appdirs>=1.4
+progressbar33>=2.4
