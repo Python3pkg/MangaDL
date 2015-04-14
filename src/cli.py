@@ -1,6 +1,6 @@
 import sys
 import logging
-from os import path, makedirs
+from os import path, makedirs, execl
 from clint.textui import puts, prompt, colored
 from scrapers import ScraperManager
 from src.config import Config
@@ -25,6 +25,40 @@ class CLI:
         if path.isfile(self.config.app_config_path):
             self.config = self.config.app_config()
             self.manga = Manga()
+
+    def _manga_prompt(self, query='Which Manga title would you like to use?'):
+        """
+        Prompt the user to select a saved Manga entry
+        :param query: The prompt query message
+        :type  query: str
+
+        :return: The metadata instance of the selected Manga
+        :rtype : SeriesMeta
+
+        :raises: NoMangaSavesError
+        """
+        manga_list = self.manga.all()
+        if not manga_list:
+            puts('No Manga titles have been downloaded yet, download something first!')
+            raise NoMangaSavesError
+
+        # Print our a list of available Manga saves
+        puts()
+        for key, manga in enumerate(manga_list, 1):
+            puts('{key}. {title}'.format(key=key, title=manga.title))
+        puts()
+
+        # Prompt the user for the Manga title to update
+        while True:
+            try:
+                update_key = int(prompt.query(query))
+                local_manga = manga_list[update_key - 1]
+            except (ValueError, IndexError):
+                self.log.info('User provided invalid update input')
+                puts('Invalid entry, please select a Manga entry from the above list')
+                continue
+            break
+        return local_manga
 
     @staticmethod
     def print_header():
@@ -127,26 +161,10 @@ class CLI:
         """
         Update an existing Manga title
         """
-        manga_list = self.manga.all()
-        if not manga_list:
-            return puts('No Manga titles have been downloaded yet, download_chapter something first!')
-
-        # Print our a list of available Manga saves
-        puts()
-        for key, manga in enumerate(manga_list, 1):
-            puts('{key}. {title}'.format(key=key, title=manga.title))
-        puts()
-
-        # Prompt the user for the Manga title to update
-        while True:
-            try:
-                update_key = int(prompt.query('Which Manga title would you like to update?'))
-                local_manga = manga_list[update_key - 1]
-            except (ValueError, IndexError):
-                self.log.info('User provided invalid update input')
-                puts('Invalid entry, please select a Manga entry from the above list')
-                continue
-            break
+        try:
+            local_manga = self._manga_prompt('Which Manga title would you like to update?')
+        except NoMangaSavesError:
+            return
 
         # Run a search query on the selected title
         try:
@@ -175,6 +193,31 @@ class CLI:
                     continue
                 puts('Exiting')
                 break
+
+    def create_pdf(self):
+        """
+        Create PDF's for a Manga series
+        """
+        try:
+            manga = self._manga_prompt()
+        except NoMangaSavesError:
+            return
+
+        # Prompt for chapter / series PDF creation
+        while True:
+            puts('Would you like to create individual PDF\'s for each chapter, or one for the entire series?')
+            response = prompt.query('Chapter / Series?', 'CHAPTER').lower().strip()
+            if response in ['c', 'chapter']:
+                pdf_type = 'chapter'
+            elif response in ['s', 'series']:
+                pdf_type = 'series'
+            else:
+                puts('Invalid response, please enter in either "CHAPTER" or "SERIES"')
+                continue
+            break
+
+        if pdf_type == 'series':
+            pass
 
     def setup(self, header=True):
         """
@@ -251,7 +294,8 @@ class CLI:
                   'Common': {'sites': ','.join(enabled_sites), 'synonyms': str(synonyms_enabled), 'debug': debug_mode,
                              'throttle': 1}}
 
-        self.config.app_config_create(config)
+        Config().app_config_create(config)
+        execl(sys.executable, *([sys.executable] + sys.argv))
 
     @staticmethod
     def exit():
@@ -259,3 +303,7 @@ class CLI:
         Exit the application
         """
         sys.exit()
+
+
+class NoMangaSavesError(Exception):
+    pass
