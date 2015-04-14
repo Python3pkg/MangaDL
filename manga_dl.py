@@ -37,6 +37,9 @@ def main():
             cli.setup()
 
         cli.prompt()
+        while True:
+            print()
+            cli.prompt(False)
     except KeyboardInterrupt:
         print('\nExiting\n')
         cli.exit()
