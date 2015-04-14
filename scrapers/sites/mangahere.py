@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from scrapers import MangaScraper
+from src.manga import NoSearchResultsError
 
 
 class MangaHere(MangaScraper):
@@ -25,11 +26,14 @@ class MangaHere(MangaScraper):
             results = search_soup.find('div', 'result_search')
             first_result = results.dl
         except AttributeError:
-            raise self.NoSearchResultsFoundError
+            raise NoSearchResultsError
 
         # Search result list data
-        name_one = first_result.dt.find('a', 'name_one')
-        name_two = first_result.dt.find('a', 'name_two')
+        try:
+            name_one = first_result.dt.find('a', 'name_one')
+            name_two = first_result.dt.find('a', 'name_two')
+        except AttributeError:
+            raise NoSearchResultsError
 
         # URL, Title, Chapter Count
         url = name_one['href']
