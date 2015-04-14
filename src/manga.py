@@ -33,6 +33,21 @@ class Manga:
         self.chapter_dir_template = self.config.get('Paths', 'chapter_dir')
         self.page_filename_template = self.config.get('Paths', 'page_filename')
 
+    @staticmethod
+    def natural_sort(l):
+        """
+        Natural / human list sorting
+        http://stackoverflow.com/a/4836734
+        :param l: List to sort
+        :type  l: list
+
+        :return: A naturally sorted list
+        :rtype : list
+        """
+        convert = lambda text: int(text) if text.isdigit() else text.lower()
+        alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+        return sorted(l, key=alphanum_key)
+
     def search(self, title):
         """
         Search for a given Manga title
@@ -229,7 +244,8 @@ class Manga:
         :rtype : list of SeriesMeta
         """
         manga_list = []
-        for path_item in os.listdir(self.config.get('Paths', 'manga_dir')):
+        manga_paths = self.natural_sort(os.listdir(self.config.get('Paths', 'manga_dir')))
+        for path_item in manga_paths:
             try:
                 manga_list.append(SeriesMeta(path_item))
             except MangaNotSavedError:
@@ -270,7 +286,7 @@ class SeriesMeta:
         """
         Attempt to load the requested Manga title
         """
-        manga_paths = os.listdir(self.manga_path)
+        manga_paths = Manga.natural_sort(os.listdir(self.manga_path))
 
         # Loop through the manga directories and see if we can find a match
         for path_item in manga_paths:
@@ -306,7 +322,7 @@ class SeriesMeta:
         """
         Load all available chapters for the volume
         """
-        series_path = os.listdir(self.path)
+        series_path = Manga.natural_sort(os.listdir(self.path))
 
         for path_item in series_path:
             match = self.chapter_pattern.match(path_item)
@@ -351,7 +367,7 @@ class ChapterMeta:
         """
         Load all available pages for the chapter
         """
-        chapter_paths = os.listdir(self.path)
+        chapter_paths = Manga.natural_sort(os.listdir(self.path))
 
         for path_item in chapter_paths:
             match = self.series.page_pattern.match(path_item)
