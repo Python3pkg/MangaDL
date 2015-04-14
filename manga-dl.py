@@ -5,6 +5,11 @@ import logging
 from src.config import Config
 from src.cli import CLI
 
+__author__     = "Makoto Fujikawa"
+__copyright__  = "Copyright 2015, Makoto Fujikawa"
+__version__    = "0.1.0"
+__maintainer__ = "Makoto Fujikawa"
+
 
 def main():
     config = Config().app_config() if Config().app_config_exists() else None
@@ -28,7 +33,6 @@ def main():
     # If this is our first time running the application, run setup first
     if not config:
         cli.setup()
-        os.execl(sys.executable, *([sys.executable] + sys.argv))
 
     cli.prompt()
 
