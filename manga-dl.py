@@ -1,4 +1,5 @@
-#!/bin/env python3
+#!/bin/env python3.4
+
 import os
 import sys
 import logging
@@ -31,10 +32,14 @@ def main():
     log.addHandler(console_logger)
 
     # If this is our first time running the application, run setup first
-    if not config:
-        cli.setup()
+    try:
+        if not config:
+            cli.setup()
 
-    cli.prompt()
+        cli.prompt()
+    except KeyboardInterrupt:
+        print('\nExiting\n')
+        cli.exit()
 
 if __name__ == '__main__':
     main()
