@@ -14,7 +14,7 @@ class CLI:
     YES_RESPONSES = ['y', 'yes', 'true']
     NO_RESPONSES = ['n', 'no', 'false']
 
-    PROMPT_ACTIONS = {'1': 'download', '2': 'update', '3': 'create_pdf', '4': 'delete', 's': 'setup', 'e': 'exit'}
+    PROMPT_ACTIONS = {'1': 'download', '2': 'update', '3': 'create_pdf', '4': 'list', 's': 'setup', 'e': 'exit'}
 
     def __init__(self):
         """
@@ -27,16 +27,12 @@ class CLI:
             self.config = self.config.app_config()
             self.manga = Manga()
 
-    def _manga_prompt(self, query='Which Manga title would you like to use?'):
+    def _list_manga(self):
         """
-        Prompt the user to select a saved Manga entry
-        :param query: The prompt query message
-        :type  query: str
+        List all tracked Manga series'
 
-        :return: The metadata instance of the selected Manga
-        :rtype : SeriesMeta
-
-        :raises: NoMangaSavesError
+        :return: List of SeriesMeta instances
+        :rtype : list of SeriesMeta
         """
         manga_list = self.manga.all()
         if not manga_list:
@@ -48,6 +44,21 @@ class CLI:
         for key, manga in enumerate(manga_list, 1):
             puts('{key}. {title}'.format(key=key, title=manga.title))
         puts()
+
+        return manga_list
+
+    def _manga_prompt(self, query='Which Manga title would you like to use?'):
+        """
+        Prompt the user to select a saved Manga entry
+        :param query: The prompt query message
+        :type  query: str
+
+        :return: The metadata instance of the selected Manga
+        :rtype : SeriesMeta
+
+        :raises: NoMangaSavesError
+        """
+        manga_list = self._list_manga()
 
         # Prompt the user for the Manga title to update
         while True:
@@ -89,7 +100,7 @@ class CLI:
         puts('1. Download new series')
         puts('2. Update existing series')
         puts('3. Create PDF\'s from existing series')
-        puts('4. Delete existing series')
+        puts('4. List all tracked series\'')
         puts('--------------------------------')
         puts('s. Re-run setup')
         puts('e. Exit\n')
@@ -270,6 +281,39 @@ class CLI:
             pdf_file.close()
 
             puts('PDF created and saved successfully to {path}'.format(path=pdf_path))
+
+    def list(self):
+        """
+        List information on all tracked Manga's
+        """
+        manga_list = self.manga.all()
+
+        # Counters
+        total_series_count  = 0
+        total_chapter_count = 0
+        total_page_count    = 0
+
+        for manga in manga_list:
+            # Manga header
+            manga_header = '\n{title}'.format(title=manga.title)
+            manga_header = colored.yellow(manga_header)
+            puts(manga_header)
+
+            # Manga metadata
+            manga_subheader = 'Chapters: {chapter_count}, Total pages: {page_count}'
+            chapter_count = len(manga.chapters)
+            page_count = sum([len(chapter.pages) for chapter in manga.chapters.values()])
+            manga_subheader = manga_subheader.format(chapter_count=chapter_count, page_count=page_count)
+            puts(manga_subheader)
+
+            # Update total counters
+            total_series_count  += 1
+            total_chapter_count += chapter_count
+            total_page_count    += page_count
+
+        total_counts = 'Series\': {series}, Chapters: {chapters}, Pages: {pages}'
+        puts(colored.yellow('\nTotals:'))
+        puts(total_counts.format(series=total_series_count, chapters=total_chapter_count, pages=total_page_count))
 
     def setup(self, header=True):
         """
