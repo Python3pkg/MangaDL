@@ -4,12 +4,12 @@ from time import sleep
 import logging
 import re
 from collections import OrderedDict
+from straight.plugin import load
 from urllib import request
 from urllib.error import ContentTooShortError
 from configparser import ConfigParser
 from clint.textui import puts, colored
 from progressbar import ProgressBar, Percentage, Bar, SimpleProgress, AdaptiveETA
-from scrapers import ScraperManager
 from src.config import Config
 
 
@@ -23,7 +23,7 @@ class Manga:
         """
         self.config = Config().app_config()
         self.log = logging.getLogger('manga-dl.manga')
-        self._site_scrapers = ScraperManager().scrapers
+        self._site_scrapers = load('scrapers.sites')
         self.throttle = self.config.getint('Common', 'throttle', fallback=1)
         self.progress_widget = [Percentage(), ' ', Bar(), ' Page: ', SimpleProgress(), ' ', AdaptiveETA()]
 
@@ -57,10 +57,11 @@ class Manga:
         :return: Ordered dictionary of mangopi metasite chapter instances
         :rtype : MetaChapter
         """
-        for name, site_class in self._site_scrapers.items():
-            self.log.info('Assigning site: ' + name)
+        for site in self._site_scrapers:
+            name, scraper = site.Scraper
+            site = scraper()
+            self.log.info('Assigning site: ' + str(site))
             self.log.info('Searching for series: {title}'.format(title=title))
-            site = site_class()
             try:
                 site.series = title
             except NoSearchResultsError:

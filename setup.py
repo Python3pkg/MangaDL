@@ -31,6 +31,7 @@ setup(name='MangaDL',
       ],
 
       install_requires=[
+          'straight.plugin>=1.4',
           'requests>=2.6',
           'img2pdf>=0.1.5',
           'clint>=0.4.1',

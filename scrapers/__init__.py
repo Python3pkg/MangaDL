@@ -1,1 +1,1 @@
-from .scraper import ScraperManager, MangaScraper
+from .scraper import MangaScraper
