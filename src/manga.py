@@ -272,7 +272,6 @@ class SeriesMeta:
 
         # Series configuration placeholders
         self._series_config  = None
-        self.volume_pattern  = None
         self.chapter_pattern = None
         self.page_pattern    = None
 
