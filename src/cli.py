@@ -2,6 +2,7 @@ import sys
 import logging
 from os import path, makedirs, execl
 from clint.textui import puts, prompt, colored
+import img2pdf
 from scrapers import ScraperManager
 from src.config import Config
 from src.manga import Manga, SeriesMeta, NoSearchResultsError, ImageResourceUnavailableError, MangaAlreadyExistsError
@@ -196,16 +197,19 @@ class CLI:
 
     def create_pdf(self):
         """
-        Create PDF's for a Manga series
+        Create PDFs for a Manga series
         """
         try:
+            self.log.debug('Prompting the user for a Manga to create a PDF from')
             manga = self._manga_prompt()
         except NoMangaSavesError:
+            self.log.info('No Manga\'s available to create PDFs from')
             return
 
         # Prompt for chapter / series PDF creation
         while True:
-            puts('Would you like to create individual PDF\'s for each chapter, or one for the entire series?')
+            self.log.debug('Prompting the user for Chapter or Series PDF creation')
+            puts('\nWould you like to create individual PDF\'s for each chapter, or one for the entire series?')
             response = prompt.query('Chapter / Series?', 'CHAPTER').lower().strip()
             if response in ['c', 'chapter']:
                 pdf_type = 'chapter'
@@ -216,8 +220,56 @@ class CLI:
                 continue
             break
 
+        # Flip the order of the pages, so that the PDF can be read in reverse order
+        reverse = prompt.query('\nWould you like to add the pages in reverse order? (Manga will be read backwards)',
+                               'N')
+        reverse = True if reverse.lower().strip() in self.YES_RESPONSES else False
+
+        page_paths = []
+        # If we're just creating one giant series PDF, do that now and return
         if pdf_type == 'series':
-            pass
+            self.log.info('Retrieving a list of paths to all pages in all chapters')
+            for chapter in manga.chapters.values():
+                page_paths += [page.path for page in chapter.pages.values()]
+            if reverse:
+                page_paths.reverse()
+            page_count = len(page_paths)
+            chapter_count = len(manga.chapters)
+            self.log.info('{num} pages queued'.format(num=page_count))
+
+            # Create the PDF and write it to a file
+            pdf_header = '\nCreating a PDF for the entire {series} series, containing {chapter_count} chapters and ' \
+                         '{page_count} pages'
+            pdf_header = colored.yellow(pdf_header)
+            puts(pdf_header.format(series=manga.title, chapter_count=chapter_count, page_count=page_count))
+
+            pdf = img2pdf.convert(page_paths)
+            pdf_path = path.join(manga.path, 'PDF', manga.title + '.pdf')
+            pdf_file = open(pdf_path, 'wb')
+            pdf_file.write(pdf)
+            pdf_file.close()
+
+            puts('PDF created and saved successfully to {path}'.format(path=pdf_path))
+            return
+
+        # Create individual PDFs for each chapter
+        for chapter in manga.chapters.values():
+            pdf_header = '\nCreating a PDF for Chapter {chapter}: {title}'
+            pdf_header = colored.yellow(pdf_header)
+            puts(pdf_header.format(chapter=chapter.chapter, title=chapter.title))
+
+            page_paths = [page.path for page in chapter.pages.values()]
+            if reverse:
+                page_paths.reverse()
+            pdf = img2pdf.convert(page_paths)
+            pdf_filename = 'Chapter {chapter}: {title}'.format(chapter=chapter.chapter, title=chapter.title)
+            pdf_path = path.join(manga.path, 'PDF', pdf_filename + '.pdf')
+            makedirs(path.join(manga.path, 'PDF'), 0o755, True)
+            pdf_file = open(pdf_path, 'wb')
+            pdf_file.write(pdf)
+            pdf_file.close()
+
+            puts('PDF created and saved successfully to {path}'.format(path=pdf_path))
 
     def setup(self, header=True):
         """
