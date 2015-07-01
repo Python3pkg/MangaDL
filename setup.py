@@ -22,7 +22,7 @@ setup(name='MangaDL',
       },
 
       classifiers=[
-          'Development Status :: 3 - Alpha',
+          'Development Status :: 2 - Pre-Alpha',
           'Environment :: Console',
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: MIT License',
