@@ -1,22 +1,23 @@
 #!/usr/bin/env python3.4
 
 from setuptools import setup, find_packages
+from mangadl import __version__
 
 setup(name='MangaDL',
-      version='0.1.0',
+      version=__version__,
       description='A general purpose Manga scraping utility',
       keywords='manga scraper',
       url='https://github.com/FujiMakoto/MangaDL',
       license='MIT',
 
-      author='Makoto Fujikawa',
-      maintainer='Makoto Fujikawa',
+      author='Makoto Fujimoto',
+      maintainer='Makoto Fujimoto',
       author_email='makoto@makoto.io',
 
       packages=find_packages(),
       entry_points={
           'console_scripts': [
-              'manga-dl = src.manga_dl:main',
+              'manga-dl = mangadl.manga_dl:main',
           ]
       },
 
@@ -31,11 +32,11 @@ setup(name='MangaDL',
       ],
 
       install_requires=[
-          'straight.plugin>=1.4',
-          'requests>=2.6',
-          'img2pdf>=0.1.5',
-          'clint>=0.4.1',
-          'appdirs>=1.4',
-          'progressbar33>=2.4'
+          'requests~=2.6',
+          'img2pdf~=0.1.5',
+          'clint~=0.4.1',
+          'appdirs~=1.4',
+          'progressbar33~=2.4',
+          'beautifulsoup4~=4.3.2'
       ],
       )
