@@ -1,5 +1,36 @@
+import os
+from importlib import import_module
 from collections import OrderedDict
 from abc import ABCMeta, abstractmethod
+
+
+class ScraperManager:
+    """
+    Loads and contains all available site scraper classes
+    """
+    def __init__(self):
+        """
+        Initialize a new Scraper Manager instance
+        """
+        self.scrapers = {}
+        self._load_all()
+
+    def _load_all(self):
+        """
+        Load all available scraper sites
+        """
+        base_dir = os.path.dirname(os.path.realpath(__file__))
+        sites_path = os.path.join(base_dir, 'sites')
+        contents = os.listdir(sites_path)
+        imps = [p.rstrip('.py') for p in contents if not p.startswith('_') and p.endswith('.py')]
+
+        for imp in imps:
+            try:
+                module = import_module('mangadl.scrapers.sites.{name}'.format(name=imp))
+                name, scraper_class = module.Scraper
+                self.scrapers[name] = scraper_class
+            except ImportError:
+                continue
 
 
 class MangaScraper:

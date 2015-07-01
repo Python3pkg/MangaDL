@@ -1,11 +1,11 @@
 import sys
 import logging
 from os import path, makedirs, execl
-from straight.plugin import load
 from clint.textui import puts, prompt, colored
 import img2pdf
-from src.config import Config
-from src.manga import Manga, SeriesMeta, NoSearchResultsError, ImageResourceUnavailableError, MangaAlreadyExistsError
+from mangadl.scrapers import ScraperManager
+from mangadl.config import Config
+from mangadl.manga import Manga, SeriesMeta, NoSearchResultsError, ImageResourceUnavailableError, MangaAlreadyExistsError
 
 
 # noinspection PyUnboundLocalVariable,PyBroadException
@@ -21,6 +21,7 @@ class CLI:
         Initialize a new CLI instance
         """
         self.config = Config()
+        self.scraper_manager = ScraperManager()
         self.log = logging.getLogger('manga-dl.cli')
         if path.isfile(self.config.app_config_path):
             self.config = self.config.app_config()
@@ -345,7 +346,7 @@ class CLI:
             self.log.info('Prompting for Manga sites to enable')
             puts('\nWhich Manga websites would you like to enable?')
 
-            sites = [site.Scraper[0] for site in load('scrapers.sites')]
+            sites = self.scraper_manager.scrapers
             sites_map = {}
             for key, site in enumerate(sites, 1):
                 sites_map[key] = site

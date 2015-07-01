@@ -1,15 +1,8 @@
 #!/bin/env python3.4
 
-import os
-import sys
 import logging
-from src.config import Config
-from src.cli import CLI
-
-__author__     = "Makoto Fujikawa"
-__copyright__  = "Copyright 2015, Makoto Fujikawa"
-__version__    = "0.1.0"
-__maintainer__ = "Makoto Fujikawa"
+from mangadl.config import Config
+from mangadl.cli import CLI
 
 
 def main():

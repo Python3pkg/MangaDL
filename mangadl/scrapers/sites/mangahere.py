@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
-from scrapers import MangaScraper
-from src.manga import NoSearchResultsError
+from mangadl.scrapers import MangaScraper
+from mangadl.manga import NoSearchResultsError
 
 
 class MangaHere(MangaScraper):
