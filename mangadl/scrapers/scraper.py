@@ -33,11 +33,10 @@ class ScraperManager:
                 continue
 
 
-class MangaScraper:
+class MangaScraper(metaclass=ABCMeta):
     """
     Manga scraper
     """
-    __metaclass__ = ABCMeta
 
     def __init__(self, search_url):
         """
@@ -58,11 +57,10 @@ class MangaScraper:
         pass
 
     # Metadata base classes
-    class SeriesMeta:
+    class SeriesMeta(metaclass=ABCMeta):
         """
         Series metadata base class
         """
-        __metaclass__ = ABCMeta
 
         def __init__(self, url, title, alt_titles=NotImplemented, chapter_count=NotImplemented):
             """
@@ -106,11 +104,10 @@ class MangaScraper:
             self._chapters = OrderedDict(reversed(list(self._chapters.items())))
             return self._chapters
 
-    class ChapterMeta:
+    class ChapterMeta(metaclass=ABCMeta):
         """
         Chapter metadata base class
         """
-        __metaclass__ = ABCMeta
 
         def __init__(self, url, title, chapter, series):
             """
@@ -148,11 +145,10 @@ class MangaScraper:
             self._load_pages()
             return self._pages
 
-    class PageMeta:
+    class PageMeta(metaclass=ABCMeta):
         """
         Page metadata base class
         """
-        __metaclass__ = ABCMeta
 
         def __init__(self, url, page_no, chapter):
             """

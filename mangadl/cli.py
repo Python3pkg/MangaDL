@@ -147,7 +147,7 @@ class CLI:
         puts('{count} chapters added to queue'.format(count=chapter_count))
 
         # Loop through our chapters and download_chapter them
-        for chapter_no, chapter in series.chapters.items():
+        for chapter_no, chapter in list(series.chapters.items()):
             manga = SeriesMeta(series.title)
             try:
                 self.manga.download_chapter(chapter, manga)
@@ -185,7 +185,7 @@ class CLI:
             return puts('No search results returned for {query} (the title may have been licensed or otherwise removed)'
                         .format(query=colored.blue(local_manga.title, bold=True)))
 
-        for remote_chapter in remote_series.chapters.values():
+        for remote_chapter in list(remote_series.chapters.values()):
             try:
                 self.manga.update(remote_chapter, local_manga)
             except ImageResourceUnavailableError:
@@ -240,8 +240,8 @@ class CLI:
         # If we're just creating one giant series PDF, do that now and return
         if pdf_type == 'series':
             self.log.info('Retrieving a list of paths to all pages in all chapters')
-            for chapter in manga.chapters.values():
-                page_paths += [page.path for page in chapter.pages.values()]
+            for chapter in list(manga.chapters.values()):
+                page_paths += [page.path for page in list(chapter.pages.values())]
             if reverse:
                 page_paths.reverse()
             page_count = len(page_paths)
@@ -264,12 +264,12 @@ class CLI:
             return
 
         # Create individual PDFs for each chapter
-        for chapter in manga.chapters.values():
+        for chapter in list(manga.chapters.values()):
             pdf_header = '\nCreating a PDF for Chapter {chapter}: {title}'
             pdf_header = colored.yellow(pdf_header)
             puts(pdf_header.format(chapter=chapter.chapter, title=chapter.title))
 
-            page_paths = [page.path for page in chapter.pages.values()]
+            page_paths = [page.path for page in list(chapter.pages.values())]
             if reverse:
                 page_paths.reverse()
             pdf = img2pdf.convert(page_paths)
@@ -302,7 +302,7 @@ class CLI:
             # Manga metadata
             manga_subheader = 'Chapters: {chapter_count}, Total pages: {page_count}'
             chapter_count = len(manga.chapters)
-            page_count = sum([len(chapter.pages) for chapter in manga.chapters.values()])
+            page_count = sum([len(chapter.pages) for chapter in list(manga.chapters.values())])
             manga_subheader = manga_subheader.format(chapter_count=chapter_count, page_count=page_count)
             puts(manga_subheader)
 

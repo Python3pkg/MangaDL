@@ -57,7 +57,7 @@ class Manga:
         :return: Ordered dictionary of mangopi metasite chapter instances
         :rtype : MetaChapter
         """
-        for name, site_class in self._site_scrapers.items():
+        for name, site_class in list(self._site_scrapers.items()):
             self.log.info('Assigning site: ' + name)
             self.log.info('Searching for series: {title}'.format(title=title))
             site = site_class()
@@ -168,7 +168,7 @@ class Manga:
         progress_bar = ProgressBar(page_count, self.progress_widget)
         progress_bar.start()
 
-        for index, page in enumerate(pages.values(), 1):
+        for index, page in enumerate(list(pages.values()), 1):
             # Set the filename and path
             page_filename = self.page_filename_template.format(page=page.page, ext='jpg')
             self.log.debug('Page filename set: {filename}'.format(filename=page_filename))
